@@ -784,10 +784,8 @@ main(int argc, char **argv)
 	}
 
 	if (main_option_targets) {
-#ifndef HAVE_ORC
 		print_vector_targets("builtin targets:  ",
 			vips_vector_get_builtin_targets());
-#endif
 		print_vector_targets("supported targets:",
 			vips_vector_get_supported_targets());
 	}

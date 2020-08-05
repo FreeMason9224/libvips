@@ -1654,7 +1654,8 @@ int vips__init(const char *argv0);
 
 size_t vips__get_sizeof_vipsobject(void);
 
-/* This is deprecated to make room for highway.
+/* This is deprecated now that we've removed liborc in favour of
+ * highway.
  */
 typedef struct _OrcProgram {
 	/* Opaque */

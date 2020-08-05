@@ -1000,7 +1000,8 @@ im__bandalike(const char *domain,
 	return 0;
 }
 
-/* This is deprecated to make room for highway.
+/* This is deprecated now that we've removed liborc in favour of
+ * highway.
  */
 void
 vips_vector_init(void)

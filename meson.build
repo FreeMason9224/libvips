@@ -490,9 +490,6 @@ if libopenjp2_dep.found()
     cfg_var.set('HAVE_LIBOPENJP2', '1')
 endif
 
-# simd package we use
-simd_package = disabler()
-
 # Require 1.0.5 to support the `ReorderDemote2To(u8, i16, i16)` operation
 # See: https://github.com/google/highway/pull/1247
 libhwy_dep = dependency('libhwy', version: '>=1.0.5', required: get_option('highway'))
@@ -510,23 +507,6 @@ if libhwy_dep.found()
     #disabled_targets += ['HWY_AVX3_ZEN4']
     #disabled_targets += ['HWY_AVX3_SPR']
     add_project_arguments('-DHWY_DISABLED_TARGETS=@0@'.format('|'.join(disabled_targets)), language: ['cpp'])
-    simd_package = libhwy_dep
-endif
-
-# only if highway not found
-if not simd_package.found()
-    # we use loadpw etc.
-    orc_dep = dependency('orc-0.4', version: '>=0.4.11', required: get_option('orc'))
-    if orc_dep.found()
-        external_deps += orc_dep
-        cfg_var.set('HAVE_ORC', '1')
-        # orc 0.4.30+ works with cf-protection, but 0.4.30 has a bug with multiple
-        # definitions of OrcTargetPowerPCFlags, so insist on 0.4.31
-        if orc_dep.version().version_compare('>=0.4.31')
-            cfg_var.set('HAVE_ORC_CF_PROTECTION', '1')
-        endif
-        simd_package = orc_dep
-    endif
 endif
 
 # pdf loader we use
@@ -765,7 +745,7 @@ build_summary = {
 build_features = {
   'Optional external packages':
     {'FFTs': ['fftw', fftw_dep],
-     'SIMD support': ['libhwy or liborc', simd_package],
+     'SIMD support': ['libhwy', libhwy_dep],
      'ICC profile support': ['lcms2', lcms_dep],
      'deflate compression': ['zlib', zlib_dep],
      'text rendering': ['pangocairo', pangocairo_dep],

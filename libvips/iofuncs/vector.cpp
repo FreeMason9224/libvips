@@ -37,32 +37,14 @@
 #include <glib/gi18n-lib.h>
 
 #include <stdlib.h>
-#include <math.h>
 
 #include <vips/vips.h>
 #include <vips/vector.h>
 #include <vips/debug.h>
 #include <vips/internal.h>
 
-/* If we are building with -fcf-protection (run-time checking of
- * indirect jumps) then Orc won't work. Make sure it's off.
- *
- * https://gcc.gnu.org/onlinedocs/gcc/\
- * 	Instrumentation-Options.html#index-fcf-protection
- * https://gitlab.freedesktop.org/gstreamer/orc/issues/17
- *
- * orc 0.4.30 and later work with cf-protection.
- */
-#ifdef __CET__
-#ifndef HAVE_ORC_CF_PROTECTION
-#undef HAVE_ORC
-#endif
-#endif
-
 #ifdef HAVE_HWY
 #include <hwy/highway.h>
-#elif defined(HAVE_ORC)
-#include <orc/orc.h>
 #endif /*HAVE_HWY*/
 
 /* Cleared by the command-line `--vips-novector` switch and the
@@ -73,10 +55,6 @@ gboolean vips__vector_enabled = TRUE;
 void
 vips__vector_init(void)
 {
-#ifdef HAVE_ORC
-	orc_init();
-#endif /*HAVE_ORC*/
-
 	/* Check whether any features are being disabled by the environment.
 	 */
 	const char *env;
@@ -99,8 +77,6 @@ vips_vector_isenabled(void)
 {
 #ifdef HAVE_HWY
 	return vips__vector_enabled && vips_vector_get_supported_targets() != 0;
-#elif defined(HAVE_ORC)
-	return vips__vector_enabled;
 #else
 	return FALSE;
 #endif
@@ -142,8 +118,6 @@ vips_vector_get_supported_targets(void)
 {
 #ifdef HAVE_HWY
 	return hwy::SupportedTargets() & ~(HWY_EMU128 | HWY_SCALAR);
-#elif defined(HAVE_ORC)
-	return orc_target_get_default_flags(orc_target_get_default());
 #else
 	return 0;
 #endif
@@ -162,9 +136,6 @@ vips_vector_target_name(gint64 target)
 {
 #ifdef HAVE_HWY
 	return hwy::TargetName(target);
-#elif defined(HAVE_ORC)
-	return orc_target_get_flag_name(orc_target_get_default(),
-		log2(target));
 #else
 	return NULL;
 #endif

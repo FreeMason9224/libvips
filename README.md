@@ -230,8 +230,7 @@ package pangocairo in `pkg-config --list-all`.
 
 ### highway
 
-If present, libvips will accelerate some operations with SIMD. If not, it
-will look for the orc-0.4 package.
+If available, vips will accelerate some operations with SIMD.
 
 ### matio
 

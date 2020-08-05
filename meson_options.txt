@@ -168,11 +168,6 @@ option('highway',
   value: 'auto',
   description: 'Build with highway')
 
-option('orc',
-  type: 'feature',
-  value: 'auto',
-  description: 'Build with orc-0.4')
-
 option('pangocairo',
   type: 'feature',
   value: 'auto',
