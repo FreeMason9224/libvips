@@ -113,8 +113,9 @@ option('magick',
   description: 'Build with libMagic')
 
 option('magick-package',
-  type: 'string',
-  value: 'MagickCore',
+  type: 'array',
+  choices: ['MagickCore', 'ImageMagick', 'GraphicsMagick'],
+  value: ['MagickCore', 'ImageMagick'],
   description: 'ImageMagick package to build with')
 
 option('magick-features',

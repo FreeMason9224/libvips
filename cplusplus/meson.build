@@ -59,6 +59,8 @@ if get_option('doxygen')
         output: 'html',
         command: [doxygen, doxyfile],
         install: true,
-        install_dir: get_option('prefix') / get_option('datadir') / 'doc' / 'vips-doc'
+        install_dir: get_option('prefix') / get_option('datadir') / 'doc' / 'vips-doc',
+        # FIXME: Not needed with Meson >= 0.64.0
+        install_tag: 'doc'
     )
 endif

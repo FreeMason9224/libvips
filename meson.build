@@ -1,6 +1,6 @@
 project('vips', 'c', 'cpp',
     version: '8.16.0',
-    meson_version: '>=0.59',
+    meson_version: '>=0.60',
     default_options: [
         # this is what glib uses (one of our required deps), so we use it too
         'c_std=gnu99',
@@ -210,15 +210,9 @@ if fftw_dep.found()
     cfg_var.set('HAVE_FFTW', '1')
 endif
 
-# TODO: simplify this when requiring meson>=0.60.0
-magick_dep = dependency(get_option('magick-package'), required: false)
-if not magick_dep.found()
-    # very old versions called it "ImageMagick"
-    magick_dep = dependency('ImageMagick', required: get_option('magick'))
-endif
-magick_found = get_option('magick').allowed() and magick_dep.found()
+magick_dep = dependency(get_option('magick-package'), required: get_option('magick'))
 magick_module = false
-if magick_found
+if magick_dep.found()
     magick_module = modules_enabled and get_option('magick-module').allowed()
     if magick_module
         cfg_var.set('MAGICK_MODULE', '1')
@@ -353,12 +347,8 @@ png_package = disabler()
 # - it's sometimes called "spng.pc", sometimes "libspng.pc", we must search for
 #   both
 # - we need 0.7+ for PNG write support
-# TODO: simplify this when requiring meson>=0.60.0
-spng_dep = dependency('spng', version: '>=0.7', required: false)
-if not spng_dep.found()
-    spng_dep = dependency('libspng', version: '>=0.7', required: get_option('spng'))
-endif
-if get_option('spng').allowed() and spng_dep.found()
+spng_dep = dependency('spng', 'libspng', version: '>=0.7', required: get_option('spng'))
+if spng_dep.found()
     external_deps += spng_dep
     cfg_var.set('HAVE_SPNG', '1')
     png_package = spng_dep
@@ -624,16 +614,8 @@ endif
 #   Libs: -L${libdir} -lniftiio -lznz
 #   Cflags: -I${includedir}
 #
-# TODO: simplify this when requiring meson>=0.60.0
 nifti_prefix_dir = get_option('nifti-prefix-dir')
-libnifti_dep = dependency('niftiio', method: 'pkg-config', required: false)
-if not libnifti_dep.found()
-    libnifti_dep = dependency('NIFTI',
-      version: '>=3.0.0',
-      method: 'cmake',
-      modules: ['NIFTI::niftiio'],
-      required: get_option('nifti').enabled() and nifti_prefix_dir == '')
-endif
+libnifti_dep = dependency('niftiio', 'NIFTI', modules: ['NIFTI::niftiio'], required: get_option('nifti').enabled() and nifti_prefix_dir == '')
 if nifti_prefix_dir != '' and not libnifti_dep.found()
     nifti_inc = include_directories(nifti_prefix_dir / 'include' / 'nifti')
     nifti_lib = cc.find_library('niftiio', has_headers: ['nifti1_io.h'], header_include_directories: nifti_inc, required: get_option('nifti'))
@@ -766,7 +748,7 @@ build_features = {
      'NIfTI load/save': ['libnifti', libnifti_found ? libnifti_dep : disabler()],
      'FITS load/save': ['cfitsio', cfitsio_dep],
      'GIF save': ['cgif', cgif_dep],
-     'Magick @0@'.format('/'.join(get_option('magick-features'))): [get_option('magick-package'), magick_found ? magick_dep : disabler(), magick_module],
+     'Magick @0@'.format('/'.join(get_option('magick-features'))): [get_option('magick-package'), magick_dep, magick_module],
     },
 }
 
