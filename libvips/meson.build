@@ -85,6 +85,10 @@ if host_os == 'emscripten'
     module_link_args = [module_c_args, '-sEXPORTED_FUNCTIONS=_g_module_check_init']
 endif
 
+module_dep = declare_dependency(
+    dependencies: [gmodule_dep, config_dep, libvips_headers_dep]
+)
+
 if magick_module
     shared_module('vips-magick',
         'module/magick.c',
@@ -94,7 +98,7 @@ if magick_module
         link_args: module_link_args,
         name_prefix: '',
         name_suffix: module_suffix,
-        dependencies: [libvips_dep, magick_dep],
+        dependencies: [module_dep, magick_dep],
         gnu_symbol_visibility: 'hidden',
         install: true,
         install_dir: module_dir
@@ -109,7 +113,7 @@ if libjxl_module
         link_args: module_link_args,
         name_prefix: '',
         name_suffix: module_suffix,
-        dependencies: [libvips_dep, libjxl_dep, libjxl_threads_dep],
+        dependencies: [module_dep, libjxl_dep, libjxl_threads_dep],
         gnu_symbol_visibility: 'hidden',
         install: true,
         install_dir: module_dir
@@ -124,7 +128,7 @@ if libheif_module
         link_args: module_link_args,
         name_prefix: '',
         name_suffix: module_suffix,
-        dependencies: [libvips_dep, libheif_dep],
+        dependencies: [module_dep, libheif_dep],
         gnu_symbol_visibility: 'hidden',
         install: true,
         install_dir: module_dir
@@ -139,7 +143,7 @@ if libpoppler_module
         link_args: module_link_args,
         name_prefix: '',
         name_suffix: module_suffix,
-        dependencies: [libvips_dep, libpoppler_dep, cairo_dep],
+        dependencies: [module_dep, libpoppler_dep, cairo_dep],
         gnu_symbol_visibility: 'hidden',
         install: true,
         install_dir: module_dir
@@ -154,7 +158,7 @@ if openslide_module
         link_args: module_link_args,
         name_prefix: '',
         name_suffix: module_suffix,
-        dependencies: [libvips_dep, openslide_dep],
+        dependencies: [module_dep, openslide_dep],
         gnu_symbol_visibility: 'hidden',
         install: true,
         install_dir: module_dir
@@ -169,7 +173,7 @@ if resvg_module
         link_args: module_link_args,
         name_prefix: '',
         name_suffix: module_suffix,
-        dependencies: [libvips_dep, resvg_dep],
+        dependencies: [module_dep, resvg_dep],
         gnu_symbol_visibility: 'hidden',
         install: true,
         install_dir: module_dir
