@@ -72,12 +72,28 @@ if not modules_enabled
     subdir_done()
 endif
 
+# For shared modules on Emscripten:
+# - Use .wasm as shared module suffix
+# - Compile and link with -sSIDE_MODULE=2
+# - Ensure g_module_check_init is not DCE'd
+module_suffix = []
+module_c_args = []
+module_link_args = []
+if host_os == 'emscripten'
+    module_suffix = 'wasm'
+    module_c_args = '-sSIDE_MODULE=2'
+    module_link_args = [module_c_args, '-sEXPORTED_FUNCTIONS=_g_module_check_init']
+endif
+
 if magick_module
     shared_module('vips-magick',
         'module/magick.c',
         magick_module_sources,
         magick_module_headers,
+        c_args: module_c_args,
+        link_args: module_link_args,
         name_prefix: '',
+        name_suffix: module_suffix,
         dependencies: [libvips_dep, magick_dep],
         install: true,
         install_dir: module_dir
@@ -88,7 +104,10 @@ if libjxl_module
     shared_module('vips-jxl',
         'module/jxl.c',
         jpeg_xl_module_sources,
+        c_args: module_c_args,
+        link_args: module_link_args,
         name_prefix: '',
+        name_suffix: module_suffix,
         dependencies: [libvips_dep, libjxl_dep, libjxl_threads_dep],
         install: true,
         install_dir: module_dir
@@ -99,7 +118,10 @@ if libheif_module
     shared_module('vips-heif',
         'module/heif.c',
         heif_module_sources,
+        c_args: module_c_args,
+        link_args: module_link_args,
         name_prefix: '',
+        name_suffix: module_suffix,
         dependencies: [libvips_dep, libheif_dep],
         install: true,
         install_dir: module_dir
@@ -110,7 +132,10 @@ if libpoppler_module
     shared_module('vips-poppler',
         'module/poppler.c',
         poppler_module_sources,
+        c_args: module_c_args,
+        link_args: module_link_args,
         name_prefix: '',
+        name_suffix: module_suffix,
         dependencies: [libvips_dep, libpoppler_dep, cairo_dep],
         install: true,
         install_dir: module_dir
@@ -121,7 +146,10 @@ if openslide_module
     shared_module('vips-openslide',
         'module/openslide.c',
         openslide_module_sources,
+        c_args: module_c_args,
+        link_args: module_link_args,
         name_prefix: '',
+        name_suffix: module_suffix,
         dependencies: [libvips_dep, openslide_dep],
         install: true,
         install_dir: module_dir
@@ -132,7 +160,10 @@ if resvg_module
     shared_module('vips-resvg',
         'module/resvg.c',
         resvg_module_sources,
+        c_args: module_c_args,
+        link_args: module_link_args,
         name_prefix: '',
+        name_suffix: module_suffix,
         dependencies: [libvips_dep, resvg_dep],
         install: true,
         install_dir: module_dir
