@@ -323,6 +323,42 @@ vips_load_plugins(const char *fmt, ...)
 
 	g_dir_close(dir);
 }
+
+#ifdef __EMSCRIPTEN__
+extern char **_emscripten_get_dynamic_libraries_js();
+
+static void
+vips_load_modules_wasm()
+{
+	char **libs, **p;
+
+	/* Do nothing if modules aren't supported.
+	 */
+	if (!g_module_supported())
+		return;
+
+	libs = _emscripten_get_dynamic_libraries_js();
+
+	for (p = libs; *p; p++) {
+		GModule *module;
+
+		g_info("loading \"%s\"", *p);
+
+		module = g_module_open(*p, G_MODULE_BIND_LAZY);
+		if (module)
+			/* Modules will almost certainly create new
+			 * types, so they can't be unloaded.
+			 */
+			g_module_make_resident(module);
+		else
+			g_warning(_("unable to load \"%s\" -- %s"),
+				*p, g_module_error());
+		g_free(*p);
+	}
+
+	g_free(libs);
+}
+#endif /*__EMSCRIPTEN__*/
 #endif /*ENABLE_MODULES*/
 
 /* Install this log handler to hide warning messages.
@@ -604,6 +640,11 @@ vips_init(const char *argv0)
 	vips_g_input_stream_get_type();
 
 #ifdef ENABLE_MODULES
+#ifdef __EMSCRIPTEN__
+	/* Load any vips8 modules from the Module.dynamicLibraries array.
+	 */
+	vips_load_modules_wasm();
+#else  /*!__EMSCRIPTEN__*/
 	/* Load any vips8 modules from the vips libdir. Keep going, even if
 	 * some modules fail to load.
 	 *
@@ -613,6 +654,7 @@ vips_init(const char *argv0)
 	 */
 	vips_load_plugins("%s/vips-modules-%d.%d",
 		libdir, VIPS_MAJOR_VERSION, VIPS_MINOR_VERSION);
+#endif /*__EMSCRIPTEN__*/
 
 #if ENABLE_DEPRECATED
 	/* We had vips8 plugins for a while.
