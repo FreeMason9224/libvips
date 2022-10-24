@@ -193,11 +193,12 @@ if test_supported matload; then
 	unset VIPS_BLOCK_UNTRUSTED
 fi
 
-if test_supported dzsave; then
-	test_saver dzsave $image .zip
-	test_saver copy $image .dz
-	test_saver copy $image .dz[container=zip]
-fi
+# Skipped on Wasm
+#if test_supported dzsave; then
+#	test_saver dzsave $image .zip
+#	test_saver copy $image .dz
+#	test_saver copy $image .dz[container=zip]
+#fi
 
 if test_supported jp2kload; then
 	test_format $image jp2 20
