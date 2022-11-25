@@ -3,9 +3,11 @@
  * 6/10/18
  * 	- from gifload.c
  * 3/3/22 tlsa
- *	- update libnsgif API
- *9/5/22
- 	- attach GIF palette as metadata
+ * 	- update libnsgif API
+ * 9/5/22
+ * 	- attach GIF palette as metadata
+ * 25/11/22 kleisauke
+ * 	- close early on minimise
  */
 
 /*
@@ -537,6 +539,12 @@ vips_foreign_load_nsgif_tile_height( VipsForeignLoadNsgif *gif )
 	return( 1 );
 }
 
+static void
+vips_foreign_load_nsgif_minimise( VipsObject *object, VipsForeignLoadNsgif *gif )
+{
+	vips_source_minimise( gif->source );
+}
+
 static int
 vips_foreign_load_nsgif_load( VipsForeignLoad *load )
 {
@@ -551,6 +559,11 @@ vips_foreign_load_nsgif_load( VipsForeignLoad *load )
 	t[0] = vips_image_new();
 	if( vips_foreign_load_nsgif_set_header( gif, t[0] ) )
 		return( -1 );
+	
+	/* Close input immediately at end of read.
+	 */
+	g_signal_connect( t[0], "minimise", 
+		G_CALLBACK( vips_foreign_load_nsgif_minimise ), gif );
 
 	/* Strips 8 pixels high to avoid too many tiny regions.
 	 */
