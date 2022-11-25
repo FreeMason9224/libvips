@@ -30,3 +30,6 @@ if test_supported svgload_source; then
 	./test_descriptors $test_images/logo.svg
 fi
 
+if test_supported gifload_source; then
+	./test_descriptors $test_images/garden.gif
+fi
