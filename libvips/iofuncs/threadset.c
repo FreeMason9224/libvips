@@ -52,6 +52,20 @@
 #include <vips/thread.h>
 #include <vips/debug.h>
 
+typedef struct {
+	/* The source of this function.
+	 */
+	const char *domain;
+
+	/* The function to execute within the set.
+	 */
+	GFunc func;
+
+	/* User data that is handed over to func when it is called.
+	 */
+	gpointer data;
+} VipsThreadExec;
+
 typedef struct _VipsThreadsetMember {
 	/* The set we are part of.
 	 */
@@ -63,10 +77,7 @@ typedef struct _VipsThreadsetMember {
 
 	/* The task the thread should run next.
 	 */
-	const char *domain;
-	GFunc func;
-	void *data;
-	void *user_data;
+	VipsThreadExec *task;
 
 	/* The thread waits on this when it's free.
 	 */
@@ -88,6 +99,11 @@ struct _VipsThreadset {
 	 */
 	GSList *free;
 
+	/* The tasks to be executed by this threadset when it is exhausted.
+	 * This is only used when max_threads > 0.
+	 */
+	GAsyncQueue *queue;
+
 	/* The current number of threads, the highwater mark, and
 	 * the max we allow before blocking thread creation.
 	 */
@@ -108,42 +124,49 @@ vips_threadset_work(void *pointer)
 {
 	VipsThreadsetMember *member = (VipsThreadsetMember *) pointer;
 	VipsThreadset *set = member->set;
+	gboolean pending_task = FALSE;
 
 	VIPS_DEBUG_MSG("vips_threadset_work: starting %p\n", member);
 
 	for (;;) {
 		/* Wait for at least 15 seconds to be given work.
 		 */
-		if (vips_semaphore_down_timeout(&member->idle,
+		if (!pending_task &&
+			vips_semaphore_down_timeout(&member->idle,
 				max_idle_time) == -1)
 			break;
 
 		/* Killed or no task available? Leave this thread.
 		 */
 		if (member->kill ||
-			!member->func)
+			!member->task)
 			break;
 
 		/* If we're profiling, attach a prof struct to this thread.
 		 */
 		if (vips__thread_profile)
-			vips__thread_profile_attach(member->domain);
+			vips__thread_profile_attach(member->task->domain);
 
 		/* Execute the task.
 		 */
-		member->func(member->data, member->user_data);
+		member->task->func(member->task->data, NULL);
 
 		/* Free any thread-private resources -- they will not be
 		 * useful for the next task to use this thread.
 		 */
 		vips_thread_shutdown();
+		VIPS_FREE(member->task);
 
-		member->domain = NULL;
-		member->func = NULL;
-		member->data = NULL;
-		member->user_data = NULL;
+		/* Limited threads? Try to pop a task from the global queue.
+		 */
+		if (set->max_threads)
+			member->task = g_async_queue_try_pop(set->queue);
 
-		/* We are free ... back on the free list!
+		pending_task = member->task != NULL;
+		if (pending_task)
+			continue;
+
+		/* No pending task? We are free ... back on the free list!
 		 */
 		g_mutex_lock(set->lock);
 		set->free = g_slist_prepend(set->free, member);
@@ -174,13 +197,6 @@ static VipsThreadsetMember *
 vips_threadset_add(VipsThreadset *set)
 {
 	VipsThreadsetMember *member;
-
-	if (set->max_threads &&
-		set->n_threads >= set->max_threads) {
-		vips_error("VipsThreadset",
-			"%s", _("threadset is exhausted"));
-		return NULL;
-	}
 
 	member = g_new0(VipsThreadsetMember, 1);
 	member->set = set;
@@ -220,8 +236,8 @@ vips_threadset_add(VipsThreadset *set)
  * vips_threadset_run(), with no limit on the number of threads.
  *
  * If @max_threads is > 0, then that many threads will be created by
- * vips_threadset_new() during startup and vips_threadset_run() will fail if
- * no free threads are available.
+ * vips_threadset_new() during startup and vips_threadset_run() will
+ * add the task to the global queue if no free threads are available.
  *
  * Returns: the new threadset.
  */
@@ -234,7 +250,9 @@ vips_threadset_new(int max_threads)
 	set->lock = vips_g_mutex_new();
 	set->max_threads = max_threads;
 
-	if (set->max_threads > 0)
+	if (set->max_threads > 0) {
+		set->queue = g_async_queue_new_full((GDestroyNotify) g_free);
+
 		for (int i = 0; i < set->max_threads; i++) {
 			VipsThreadsetMember *member;
 
@@ -245,6 +263,7 @@ vips_threadset_new(int max_threads)
 
 			set->free = g_slist_prepend(set->free, member);
 		}
+	}
 
 	return set;
 }
@@ -268,6 +287,7 @@ vips_threadset_run(VipsThreadset *set,
 	const char *domain, GFunc func, gpointer data)
 {
 	VipsThreadsetMember *member;
+	VipsThreadExec *task;
 
 	member = NULL;
 
@@ -280,7 +300,21 @@ vips_threadset_run(VipsThreadset *set,
 	}
 	g_mutex_unlock(set->lock);
 
-	/* None? Make a new idle but not free member.
+	/* Exhausted? Insert the task into the global queue.
+	 */
+	if (!member &&
+		set->max_threads &&
+		set->n_threads >= set->max_threads) {
+		task = g_new0(VipsThreadExec, 1);
+		task->domain = domain;
+		task->func = func;
+		task->data = data;
+
+		g_async_queue_push(set->queue, task);
+		return 0;
+	}
+
+	/* Not exhausted? Make a new idle but not free member.
 	 */
 	if (!member)
 		member = vips_threadset_add(set);
@@ -292,10 +326,12 @@ vips_threadset_run(VipsThreadset *set,
 
 	/* Allocate the task and set it going.
 	 */
-	member->domain = domain;
-	member->func = func;
-	member->data = data;
-	member->user_data = NULL;
+	task = g_new0(VipsThreadExec, 1);
+	task->domain = domain;
+	task->func = func;
+	task->data = data;
+
+	member->task = task;
 	vips_semaphore_up(&member->idle);
 
 	return 0;
@@ -353,5 +389,6 @@ vips_threadset_free(VipsThreadset *set)
 			set->n_threads_highwater);
 
 	VIPS_FREEF(vips_g_mutex_free, set->lock);
+	VIPS_FREEF(g_async_queue_unref, set->queue);
 	VIPS_FREE(set);
 }
