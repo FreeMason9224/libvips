@@ -23,6 +23,8 @@
  * 	- speed up the mask construction for uchar/ushort images
  * 22/4/22 kleisauke
  * 	- add @gap option
+ * 25/7/22 kleisauke
+ * 	- remove seq line cache
  */
 
 /*
@@ -756,7 +758,6 @@ vips_reducev_raw( VipsReducev *reducev, VipsImage *in, int height,
 		generate = vips_reducev_vector_gen;
 	}
 
-	*out = vips_image_new();
 	if( vips_image_pipelinev( *out, 
 		VIPS_DEMAND_STYLE_THINSTRIP, in, (void *) NULL ) )
 		return( -1 );
@@ -794,7 +795,8 @@ vips_reducev_build( VipsObject *object )
 	VipsObjectClass *object_class = VIPS_OBJECT_GET_CLASS( object );
 	VipsResample *resample = VIPS_RESAMPLE( object );
 	VipsReducev *reducev = (VipsReducev *) object;
-	VipsImage **t = (VipsImage **) vips_object_local_array( object, 5 );
+	VipsImage **t = (VipsImage **)
+		vips_object_local_array( object, 3 );
 
 	VipsImage *in;
 	int height;
@@ -911,33 +913,8 @@ vips_reducev_build( VipsObject *object )
 		return( -1 );
 	in = t[2];
 
-	if( vips_reducev_raw( reducev, in, height, &t[3] ) )
+	if( vips_reducev_raw( reducev, in, height, &resample->out ) )
 		return( -1 );
-	in = t[3];
-
-	/* Large reducev will throw off sequential mode. Suppose thread1 is
-	 * generating tile (0, 0), but stalls. thread2 generates tile
-	 * (0, 1), 128 lines further down the output. After it has done,
-	 * thread1 tries to generate (0, 0), but by then the pixels it needs
-	 * have gone from the input image line cache if the reducev is large.
-	 *
-	 * To fix this, put another seq on the output of reducev. Now we'll
-	 * always have the previous XX lines of the shrunk image, and we won't
-	 * fetch out of order. 
-	 */
-	if( vips_image_get_typeof( in, VIPS_META_SEQUENTIAL ) ) { 
-		g_info( "reducev sequential line cache" ); 
-
-		if( vips_sequential( in, &t[4], 
-			"tile_height", 10,
-			// "trace", TRUE,
-			(void *) NULL ) )
-			return( -1 );
-		in = t[4];
-	}
-
-	if( vips_image_write( in, resample->out ) )
-		return( -1 ); 
 
 	return( 0 );
 }

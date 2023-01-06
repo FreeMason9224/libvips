@@ -49,6 +49,8 @@
  * 	- use a double sum buffer for int32 types
  * 22/4/22 kleisauke
  * 	- add @ceil option
+ * 25/7/22 kleisauke
+ * 	- remove seq line cache
  */
 
 /*
@@ -332,7 +334,7 @@ vips_shrinkv_build( VipsObject *object )
 	VipsResample *resample = VIPS_RESAMPLE( object );
 	VipsShrinkv *shrink = (VipsShrinkv *) object;
 	VipsImage **t = (VipsImage **) 
-		vips_object_local_array( object, 4 );
+		vips_object_local_array( object, 2 );
 
 	VipsImage *in;
 
@@ -370,8 +372,7 @@ vips_shrinkv_build( VipsObject *object )
 	/* SMALLTILE or we'll need huge input areas for our output. In seq
 	 * mode, the linecache above will keep us sequential. 
 	 */
-	t[2] = vips_image_new();
-	if( vips_image_pipelinev( t[2],
+	if( vips_image_pipelinev( resample->out,
 		VIPS_DEMAND_STYLE_SMALLTILE, in, NULL ) )
 		return( -1 );
 
@@ -381,11 +382,11 @@ vips_shrinkv_build( VipsObject *object )
 	 * example, vipsthumbnail knows the true shrink factor (including the
 	 * fractional part), we just see the integer part here.
 	 */
-	t[2]->Ysize = shrink->ceil ?
+	resample->out->Ysize = shrink->ceil ?
 		VIPS_CEIL( (double) resample->in->Ysize / shrink->vshrink ) :
 		VIPS_ROUND_UINT( 
 			(double) resample->in->Ysize / shrink->vshrink );
-	if( t[2]->Ysize <= 0 ) {
+	if( resample->out->Ysize <= 0 ) {
 		vips_error( class->nickname, 
 			"%s", _( "image has shrunk to nothing" ) );
 		return( -1 );
@@ -394,38 +395,13 @@ vips_shrinkv_build( VipsObject *object )
 #ifdef DEBUG
 	printf( "vips_shrinkv_build: shrinking %d x %d image to %d x %d\n", 
 		in->Xsize, in->Ysize, 
-		t[2]->Xsize, t[2]->Ysize );  
+		resample->out->Xsize, resample->out->Ysize );  
 #endif /*DEBUG*/
 
-	if( vips_image_generate( t[2],
+	if( vips_image_generate( resample->out,
 		vips_shrinkv_start, vips_shrinkv_gen, vips_shrinkv_stop, 
 		in, shrink ) )
 		return( -1 );
-
-	in = t[2];
-
-	/* Large vshrinks will throw off sequential mode. Suppose thread1 is
-	 * generating tile (0, 0), but stalls. thread2 generates tile
-	 * (0, 1), 128 lines further down the output. After it has done,
-	 * thread1 tries to generate (0, 0), but by then the pixels it needs
-	 * have gone from the input image line cache if the vshrink is large.
-	 *
-	 * To fix this, put another seq on the output of vshrink. Now we'll
-	 * always have the previous XX lines of the shrunk image, and we won't
-	 * fetch out of order. 
-	 */
-	if( vips_image_is_sequential( in ) ) { 
-		g_info( "shrinkv sequential line cache" ); 
-
-		if( vips_sequential( in, &t[3], 
-			"tile_height", 10,
-			NULL ) )
-			return( -1 );
-		in = t[3];
-	}
-
-	if( vips_image_write( in, resample->out ) )
-		return( -1 ); 
 
 	return( 0 );
 }
