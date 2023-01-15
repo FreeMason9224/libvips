@@ -64,7 +64,7 @@ vips_convsep_build( VipsObject *object )
 	VipsConvolution *convolution = (VipsConvolution *) object;
 	VipsConvsep *convsep = (VipsConvsep *) object;
 	VipsImage **t = (VipsImage **) 
-		vips_object_local_array( object, 4 );
+		vips_object_local_array( object, 5 );
 
 	VipsImage *in;
 
@@ -89,22 +89,23 @@ vips_convsep_build( VipsObject *object )
 		/* Take a copy, since we must set the offset.
 		 */
 		if( vips_rot( convolution->M, &t[0], VIPS_ANGLE_D90, NULL ) ||
-			vips_copy( t[0], &t[3], NULL ) )
+			vips_copy( t[0], &t[4], NULL ) )
 			return( -1 ); 
-		vips_image_set_double( t[3], "offset", 0 );
+		vips_image_set_double( t[4], "offset", 0 );
 
-		if( vips_conv( in, &t[1], convolution->M, 
+		if( vips_sequential( in, &t[1], NULL ) ||
+			vips_conv( t[1], &t[2], convolution->M, 
 				"precision", convsep->precision,
 				"layers", convsep->layers,
 				"cluster", convsep->cluster,
 				NULL ) ||
-			vips_conv( t[1], &t[2], t[3], 
+			vips_conv( t[2], &t[3], t[4], 
 				"precision", convsep->precision,
 				"layers", convsep->layers,
 				"cluster", convsep->cluster,
 				NULL ) )
 			return( -1 ); 
-		in = t[2];
+		in = t[3];
 	}
 
 	if( vips_image_write( in, convolution->out ) )
