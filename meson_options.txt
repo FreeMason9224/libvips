@@ -208,6 +208,16 @@ option('rsvg',
   value: 'auto',
   description: 'Build with rsvg')
 
+option('resvg',
+  type: 'feature',
+  value: 'auto',
+  description: 'Build with resvg')
+
+option('resvg-module',
+  type: 'feature',
+  value: 'auto',
+  description: 'Build resvg as module')
+
 option('spng',
   type: 'feature',
   value: 'auto',

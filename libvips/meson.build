@@ -127,3 +127,14 @@ if openslide_module
         install_dir: module_dir
     )
 endif
+
+if resvg_module
+    shared_module('vips-resvg',
+        'module/resvg.c',
+        resvg_module_sources,
+        name_prefix: '',
+        dependencies: [libvips_dep, resvg_dep],
+        install: true,
+        install_dir: module_dir
+    )
+endif
