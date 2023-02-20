@@ -104,6 +104,11 @@ elif cc.has_function_attribute('visibility:hidden')
     cfg_var.set('_VIPS_PUBLIC', '__attribute__((visibility("default")))')
 endif
 
+# Detect destructor attribute, used by vips_shutdown()
+if cc.has_function_attribute('destructor')
+    cfg_var.set('VIPS_DTOR', '__attribute__((destructor))')
+endif
+
 # we also need to be able to mix vector and scalar arithmetic
 vector_arithmetic_check = '''
 typedef float v4f __attribute__((vector_size(4 * sizeof(float)),aligned(16)));

@@ -734,6 +734,9 @@ vips_thread_shutdown( void )
  *
  * See also: vips_profile_set(), vips_leak_set().
  */
+#ifdef VIPS_DTOR
+VIPS_DTOR
+#endif
 void
 vips_shutdown( void )
 {
