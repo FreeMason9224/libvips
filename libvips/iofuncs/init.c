@@ -379,9 +379,9 @@ set_stacksize(guint64 size)
 	pthread_attr_t attr;
 	size_t cur_stack_size;
 
-	/* Don't allow stacks less than 2mb.
+	/* Don't allow stacks less than 256kb.
 	 */
-	size = VIPS_MAX(size, 2 * 1024 * 1024);
+	size = VIPS_MAX(size, 256 * 1024);
 
 	if (pthread_attr_init(&attr) ||
 		pthread_attr_getstacksize(&attr, &cur_stack_size)) {
@@ -515,10 +515,10 @@ vips_init(const char *argv0)
 		return 0;
 	started = TRUE;
 
-	/* Try to set a minimum stacksize, default 2mb. We need to do this
+	/* Try to set a minimum stacksize, default 256kb. We need to do this
 	 * before any threads start.
 	 */
-	min_stack_size = 2 * 1024 * 1024;
+	min_stack_size = 256 * 1024;
 	if ((vips_min_stack_size = g_getenv("VIPS_MIN_STACK_SIZE")))
 		min_stack_size = vips__parse_size(vips_min_stack_size);
 	(void) set_stacksize(min_stack_size);
