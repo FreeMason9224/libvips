@@ -3173,6 +3173,42 @@ rtiff_header_read_all(Rtiff *rtiff)
 typedef gboolean (*TiffPropertyFn)(TIFF *tif);
 
 static gboolean
+vips__istiff_skip_raw_dng(TIFF *tif)
+{
+	char *dng_version, *make;
+
+	/* Avoid employing libtiff for RAW/DNG images that share the
+	 * same file signature as TIFF.
+	 *
+	 * ORF, RAF and RW2 uses a different file signature, so
+	 * there's no need to check for that.
+	 *
+	 * See:
+	 * https://github.com/search?q=repo%3Adarktable-org%2Frawspeed+%22%2F%2F+FIXME%3A+magic%22&type=code
+	 * http://fileformats.archiveteam.org/wiki/Cameras_and_Digital_Image_Sensors
+	 */
+	if (TIFFGetField(tif, TIFFTAG_DNGVERSION, &dng_version) ||
+		(TIFFGetField(tif, TIFFTAG_MAKE, &make) &&
+			(strcmp(make, "SONY") == 0 /*ARW*/ ||
+				strcmp(make, "Canon") == 0 /*CR2*/ ||
+				strcmp(make, "NIKON") == 0 /*NEF*/ ||
+				strcmp(make, "NIKON CORPORATION") == 0 /*NEF*/ ||
+				strcmp(make, "Kodak") == 0 /*DCR*/ ||
+				strcmp(make, "KODAK") == 0 /*DCS*/ ||
+				strcmp(make, "PENTAX") == 0 /*PEF*/ ||
+				strcmp(make, "PENTAX Corporation") == 0 /*PEF*/ ||
+				strcmp(make, "RICOH IMAGING COMPANY, LTD.") == 0 /*PEF*/ ||
+				strcmp(make, "SAMSUNG") == 0 /*SRW*/ ||
+				strcmp(make, "Hasselblad") == 0 /*3FR*/ ||
+				strcmp(make, "Mamiya-OP Co.,Ltd.") /*MEF*/ == 0 ||
+				strcmp(make, "SEIKO EPSON CORP.") /*ERF*/ == 0 ||
+				strcmp(make, "EASTMAN KODAK COMPANY") /*KDC*/ == 0)))
+		return FALSE;
+
+	return TRUE;
+}
+
+static gboolean
 vips__testtiff_source(VipsSource *source, TiffPropertyFn fn)
 {
 	TIFF *tif;
@@ -3195,7 +3231,7 @@ vips__testtiff_source(VipsSource *source, TiffPropertyFn fn)
 gboolean
 vips__istiff_source(VipsSource *source)
 {
-	return vips__testtiff_source(source, NULL);
+	return vips__testtiff_source(source, vips__istiff_skip_raw_dng);
 }
 
 gboolean
