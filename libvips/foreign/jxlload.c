@@ -58,6 +58,19 @@
 #include <jxl/decode.h>
 #include <jxl/thread_parallel_runner.h>
 
+/* Compat for libjxl < 0.8.0.
+ */
+#ifndef JPEGXL_COMPUTE_NUMERIC_VERSION
+#define JPEGXL_COMPUTE_NUMERIC_VERSION(major, minor, patch) ( \
+	(major << 24) | \
+	(minor << 16) | \
+	(patch << 8) | \
+	0)
+#endif
+#ifndef JPEGXL_NUMERIC_VERSION
+#define JPEGXL_NUMERIC_VERSION JPEGXL_COMPUTE_NUMERIC_VERSION(0, 7, 0)
+#endif
+
 #include "pforeign.h"
 
 /* TODO:
@@ -564,7 +577,9 @@ vips_foreign_load_jxl_header(VipsForeignLoad *load)
 
 		case JXL_DEC_COLOR_ENCODING:
 			if (JxlDecoderGetICCProfileSize(jxl->decoder,
+#if JPEGXL_NUMERIC_VERSION < JPEGXL_COMPUTE_NUMERIC_VERSION(0, 9, 0)
 					&jxl->format,
+#endif
 					JXL_COLOR_PROFILE_TARGET_DATA,
 					&jxl->icc_size)) {
 				vips_foreign_load_jxl_error(jxl,
@@ -583,7 +598,9 @@ vips_foreign_load_jxl_header(VipsForeignLoad *load)
 				return -1;
 
 			if (JxlDecoderGetColorAsICCProfile(jxl->decoder,
+#if JPEGXL_NUMERIC_VERSION < JPEGXL_COMPUTE_NUMERIC_VERSION(0, 9, 0)
 					&jxl->format,
+#endif
 					JXL_COLOR_PROFILE_TARGET_DATA,
 					jxl->icc_data, jxl->icc_size)) {
 				vips_foreign_load_jxl_error(jxl,

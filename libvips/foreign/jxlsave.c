@@ -228,11 +228,7 @@ vips_foreign_save_jxl_build(VipsObject *object)
 	VipsForeignSaveJxl *jxl = (VipsForeignSaveJxl *) object;
 	VipsImage **t = (VipsImage **) vips_object_local_array(object, 5);
 
-#ifdef HAVE_LIBJXL_0_7
 	JxlEncoderFrameSettings *frame_settings;
-#else
-	JxlEncoderOptions *frame_settings;
-#endif
 	JxlEncoderStatus status;
 	VipsImage *in;
 	VipsBandFormat format;
@@ -360,6 +356,20 @@ vips_foreign_save_jxl_build(VipsObject *object)
 		return -1;
 	}
 
+	for (guint32 i = 0; i < jxl->info.num_extra_channels; i++) {
+		JxlExtraChannelInfo extra_channel_info;
+		JxlEncoderInitExtraChannelInfo(JXL_CHANNEL_ALPHA, &extra_channel_info);
+		extra_channel_info.bits_per_sample = jxl->info.bits_per_sample;
+		extra_channel_info.exponent_bits_per_sample =
+			jxl->info.exponent_bits_per_sample;
+
+		if (JxlEncoderSetExtraChannelInfo(jxl->encoder, i,
+				&extra_channel_info)) {
+			vips_foreign_save_jxl_error(jxl, "JxlEncoderSetExtraChannelInfo");
+			return -1;
+		}
+	}
+
 	/* Set any ICC profile.
 	 */
 	if (vips_image_get_typeof(in, VIPS_META_ICC_NAME)) {
@@ -415,7 +425,6 @@ vips_foreign_save_jxl_build(VipsObject *object)
 	if (vips_image_wio_input(in))
 		return -1;
 
-#ifdef HAVE_LIBJXL_0_7
 	frame_settings = JxlEncoderFrameSettingsCreate(jxl->encoder, NULL);
 	JxlEncoderFrameSettingsSetOption(frame_settings,
 		JXL_ENC_FRAME_SETTING_DECODING_SPEED, jxl->tier);
@@ -423,13 +432,6 @@ vips_foreign_save_jxl_build(VipsObject *object)
 	JxlEncoderFrameSettingsSetOption(frame_settings,
 		JXL_ENC_FRAME_SETTING_EFFORT, jxl->effort);
 	JxlEncoderSetFrameLossless(frame_settings, jxl->lossless);
-#else
-	frame_settings = JxlEncoderOptionsCreate(jxl->encoder, NULL);
-	JxlEncoderOptionsSetDecodingSpeed(frame_settings, jxl->tier);
-	JxlEncoderOptionsSetDistance(frame_settings, jxl->distance);
-	JxlEncoderOptionsSetEffort(frame_settings, jxl->effort);
-	JxlEncoderOptionsSetLossless(frame_settings, jxl->lossless);
-#endif
 
 #ifdef DEBUG
 	vips_foreign_save_jxl_print_info(&jxl->info);
@@ -446,6 +448,24 @@ vips_foreign_save_jxl_build(VipsObject *object)
 			VIPS_IMAGE_SIZEOF_IMAGE(in))) {
 		vips_foreign_save_jxl_error(jxl, "JxlEncoderAddImageFrame");
 		return -1;
+	}
+
+	/* Sets the buffers for the extra alpha channels.
+	 */
+	for (guint32 i = 0; i < jxl->info.num_extra_channels; i++) {
+		if (vips_extract_band(in, &t[1 + i], jxl->info.num_color_channels + i,
+				"n", 1,
+				NULL) ||
+			vips_image_wio_input(t[1 + i]))
+			return -1;
+
+		if (JxlEncoderSetExtraChannelBuffer(frame_settings, &jxl->format,
+				VIPS_IMAGE_ADDR(t[1 + i], 0, 0),
+				VIPS_IMAGE_SIZEOF_IMAGE(t[1 + i]), i)) {
+			vips_foreign_save_jxl_error(jxl,
+				"JxlEncoderSetExtraChannelBuffer");
+			return -1;
+		}
 	}
 
 	/* This function must be called after the final frame and/or box,
@@ -523,9 +543,7 @@ vips_foreign_save_jxl_class_init(VipsForeignSaveJxlClass *class)
 
 	foreign_class->suffs = vips__jxl_suffs;
 
-	/* This lets throuigh scRGB too, which we then save as jxl float.
-	 */
-	save_class->saveable = VIPS_SAVEABLE_RGBA;
+	save_class->saveable = VIPS_SAVEABLE_ANY;
 	save_class->format_table = bandfmt_jxl;
 
 	VIPS_ARG_INT(class, "tier", 10,

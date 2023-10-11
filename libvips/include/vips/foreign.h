@@ -316,7 +316,7 @@ void vips_foreign_load_invalidate(VipsImage *image);
  * @VIPS_SAVEABLE_RGBA: 1, 2, 3 or 4 bands (eg. PNG)
  * @VIPS_SAVEABLE_RGBA_ONLY: 3 or 4 bands (eg. WEBP)
  * @VIPS_SAVEABLE_RGB_CMYK: 1, 3 or 4 bands (eg. JPEG)
- * @VIPS_SAVEABLE_ANY: any number of bands (eg. TIFF)
+ * @VIPS_SAVEABLE_ANY: any number of bands (eg. TIFF, JPEG XL)
  *
  * See also: #VipsForeignSave.
  */
