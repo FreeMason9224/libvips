@@ -1,0 +1,76 @@
+name: Issue 3901
+
+on: [push, workflow_dispatch]
+
+permissions: {}
+
+jobs:
+  issue-3901:
+    name: Issue 3901 on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-11, macos-12, macos-13, macos-14]
+
+    env:
+      CFLAGS: -O0 -Werror=implicit-function-declaration -Werror=unknown-warning-option -Werror=unused-command-line-argument -Werror=ignored-optimization-argument -std=gnu99
+
+    steps:
+      - name: Checking if "int64_t is long" with pragma
+        continue-on-error: true
+        run: |
+          clang -xc -ooutput.obj -c $CFLAGS - <<EOF
+          #pragma GCC diagnostic error "-Wincompatible-pointer-types"
+          #include <stdint.h>
+          #include <stdio.h>
+          int main () {
+            int64_t i1 = 1;
+            long *i2 = &i1;
+            (void) i2;
+            return 1;
+          }
+          EOF
+
+      - name: Checking if "int64_t is long long" with pragma
+        continue-on-error: true
+        run: |
+          clang -xc -ooutput.obj -c $CFLAGS - <<EOF
+          #pragma GCC diagnostic error "-Wincompatible-pointer-types"
+          #include <stdint.h>
+          #include <stdio.h>
+          int main () {
+            int64_t i1 = 1;
+            long long *i2 = &i1;
+            (void) i2;
+            return 1;
+          }
+          EOF
+
+      - name: Checking if "int64_t is long" with -Werror=incompatible-pointer-types
+        continue-on-error: true
+        run: |
+          clang -xc -ooutput.obj -c $CFLAGS -Werror=incompatible-pointer-types - <<EOF
+          #include <stdint.h>
+          #include <stdio.h>
+          int main () {
+            int64_t i1 = 1;
+            long *i2 = &i1;
+            (void) i2;
+            return 1;
+          }
+          EOF
+
+      - name: Checking if "int64_t is long long" with -Werror=incompatible-pointer-types
+        continue-on-error: true
+        run: |
+          clang -xc -ooutput.obj -c $CFLAGS -Werror=incompatible-pointer-types - <<EOF
+          #include <stdint.h>
+          #include <stdio.h>
+          int main () {
+            int64_t i1 = 1;
+            long long *i2 = &i1;
+            (void) i2;
+            return 1;
+          }
+          EOF
