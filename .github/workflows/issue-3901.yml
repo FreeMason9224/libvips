@@ -17,6 +17,10 @@ jobs:
       CFLAGS: -O0 -Werror=implicit-function-declaration -Werror=unknown-warning-option -Werror=unused-command-line-argument -Werror=ignored-optimization-argument -std=gnu99
 
     steps:
+      - name: Force Xcode 15.2
+        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
+        run: sudo xcode-select -s '/Applications/Xcode_15.2.app/Contents/Developer'
+
       - name: Checking if "int64_t is long" with pragma
         continue-on-error: true
         run: |
