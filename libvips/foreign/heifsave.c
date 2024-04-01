@@ -509,15 +509,10 @@ vips_foreign_save_heif_build(VipsObject *object)
 		!vips_object_argument_isset(object, "subsample_mode"))
 		heif->subsample_mode = VIPS_FOREIGN_SUBSAMPLE_OFF;
 
-	/* Default 12 bit save for 16-bit images. HEIC (for example) implements
-	 * 8 / 10 / 12.
-	 */
-	if (!vips_object_argument_isset(object, "bitdepth"))
-		heif->bitdepth =
-			save->ready->Type == VIPS_INTERPRETATION_RGB16 ||
-				save->ready->Type == VIPS_INTERPRETATION_GREY16
-			? 12
-			: 8;
+	if (heif->bitdepth != 8) {
+		g_warning("heifsave: prebuilt binaries support a bitdepth of 8 only");
+		heif->bitdepth = 8;
+	}
 
 	/* Try to find the selected encoder.
 	 */
@@ -684,14 +679,10 @@ vips_foreign_save_heif_build(VipsObject *object)
 }
 
 #define UC VIPS_FORMAT_UCHAR
-#define US VIPS_FORMAT_USHORT
 
-/* Except for 8-bit inputs, we send everything else to 16. We decide on 8-bit
- * vs. 12 bit save based on Type in_build(), see above.
- */
 static VipsBandFormat vips_heif_bandfmt[10] = {
 	/* Band format:  UC  C   US  S   UI  I   F   X   D   DX */
-	/* Promotion: */ UC, UC, US, US, US, US, US, US, US, US
+	/* Promotion: */ UC, UC, UC, UC, UC, UC, UC, UC, UC, UC
 };
 
 static void
@@ -726,7 +717,7 @@ vips_foreign_save_heif_class_init(VipsForeignSaveHeifClass *class)
 		_("Number of bits per pixel"),
 		VIPS_ARGUMENT_OPTIONAL_INPUT,
 		G_STRUCT_OFFSET(VipsForeignSaveHeif, bitdepth),
-		1, 16, 12);
+		1, 16, 8);
 
 	VIPS_ARG_BOOL(class, "lossless", 13,
 		_("Lossless"),
@@ -779,7 +770,7 @@ vips_foreign_save_heif_init(VipsForeignSaveHeif *heif)
 {
 	heif->ctx = heif_context_alloc();
 	heif->Q = 50;
-	heif->bitdepth = 12;
+	heif->bitdepth = 8;
 	heif->compression = VIPS_FOREIGN_HEIF_COMPRESSION_HEVC;
 	heif->effort = 4;
 	heif->subsample_mode = VIPS_FOREIGN_SUBSAMPLE_AUTO;
